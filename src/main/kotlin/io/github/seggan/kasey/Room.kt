@@ -56,8 +56,9 @@ class Room internal constructor(
                     }
                 ).body<String>()
                 logger.debug { "Received $response" }
-                val url = response.let(Json::parseToJsonElement).jsonObject["url"]?.jsonPrimitive?.content
+                var url = response.let(Json::parseToJsonElement).jsonObject["url"]?.jsonPrimitive?.content
                 if (url != null) {
+                    url = "$url?l=${System.currentTimeMillis()}"
                     logger.debug { "Connecting to websocket $url" }
                     onWsConnection(url, client)
                 }

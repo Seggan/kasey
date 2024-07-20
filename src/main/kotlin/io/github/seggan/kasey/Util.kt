@@ -17,7 +17,7 @@ import kotlinx.serialization.json.Json
 internal inline fun constructClient(
     cookiesStorage: CookiesStorage,
     crossinline customConfig: HttpClientConfig<*>.() -> Unit = {}
-) = HttpClient(Java) {
+) = HttpClient(OkHttp) {
     followRedirects = true
     install(HttpCookies) {
         storage = cookiesStorage
