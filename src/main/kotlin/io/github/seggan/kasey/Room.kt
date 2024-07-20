@@ -1,6 +1,8 @@
 package io.github.seggan.kasey
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.github.seggan.kasey.event.ChatEvent
+import io.github.seggan.kasey.event.ChatEventType
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.cookies.*
@@ -17,10 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.*
 import java.nio.charset.StandardCharsets
 
 private val logger = KotlinLogging.logger {}
@@ -33,7 +32,7 @@ class Room internal constructor(
 
     private val client = constructClient(cookiesStorage)
     private val scope = CoroutineScope(Dispatchers.IO)
-    private val events = Channel<JsonObject>(Channel.UNLIMITED)
+    private val events = Channel<ChatEvent>(Channel.UNLIMITED)
 
     init {
         logger.info { "Joining room $id" }
@@ -58,7 +57,7 @@ class Room internal constructor(
                 logger.debug { "Received $response" }
                 var url = response.let(Json::parseToJsonElement).jsonObject["url"]?.jsonPrimitive?.content
                 if (url != null) {
-                    url = "$url?l=${System.currentTimeMillis()}"
+                    url = "$url?l=${System.currentTimeMillis() / 1000}"
                     logger.debug { "Connecting to websocket $url" }
                     onWsConnection(url, client)
                 }
@@ -78,14 +77,20 @@ class Room internal constructor(
         }) {
             logger.debug { "Connected to websocket" }
             for (message in incoming) {
-                val json = deserialize<JsonObject>(message)
-                logger.debug { json }
-                events.send(json)
+                val events = deserialize<JsonObject>(message)
+                    .filterKeys { it == roomKey }
+                    .values.asSequence()
+                    .mapNotNull { it.jsonObject["e"] }
+                    .map { it.jsonArray.first().jsonObject }
+                    .map(ChatEventType::constructEvent)
+                for (event in events) {
+                    this@Room.events.send(event)
+                }
             }
         }
     }
 
-    suspend fun nextEvent(): JsonObject {
+    suspend fun nextEvent(): ChatEvent {
         return events.receive()
     }
 
