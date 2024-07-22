@@ -7,7 +7,12 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.cookies.*
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 
 internal inline fun constructClient(
     cookiesStorage: CookiesStorage,
@@ -30,3 +35,5 @@ internal inline fun constructClient(
 }
 
 private const val USER_AGENT = "Mozilla/5.0 (compatible; automated) Kasey/1.0"
+
+internal val JsonElement.ulong: ULong get() = jsonPrimitive.content.toULong()

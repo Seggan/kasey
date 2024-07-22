@@ -40,3 +40,4 @@ bin/
 .DS_Store
 
 creds.properties
+cookies.json

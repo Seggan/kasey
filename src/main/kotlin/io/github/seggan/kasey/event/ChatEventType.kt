@@ -1,6 +1,9 @@
 package io.github.seggan.kasey.event
 
+import io.github.seggan.kasey.Room
+import io.github.seggan.kasey.errors.SeException
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.*
 import kotlinx.serialization.serializer
 import kotlin.reflect.KClass
@@ -38,13 +41,19 @@ enum class ChatEventType(val id: Int, private val serializer: KSerializer<out Ch
             ignoreUnknownKeys = true
         }
 
-        fun constructEvent(obj: JsonObject): ChatEvent {
-            val details = json.decodeFromJsonElement<ChatEventDetails>(obj)
-            ChatEvent.currentDetails = details
-            val typeNum = obj["event_type"]?.jsonPrimitive?.int
-            val type = entries.first { it.id == typeNum }
-            val serializer = type.serializer ?: throw UnsupportedOperationException("Event type $typeNum is not yet supported")
-            return json.decodeFromJsonElement(serializer, obj)
+        fun constructEvent(obj: JsonObject, room: Room): ChatEvent {
+            try {
+                ChatEventDetails.currentRoom = room
+                val details = json.decodeFromJsonElement<ChatEventDetails>(obj)
+                ChatEvent.currentDetails = details
+                val typeNum = obj["event_type"]?.jsonPrimitive?.int
+                val type = entries.first { it.id == typeNum }
+                val serializer =
+                    type.serializer ?: throw UnsupportedOperationException("Event type $typeNum is not yet supported")
+                return json.decodeFromJsonElement(serializer, obj)
+            } catch (e: SerializationException) {
+                throw SeException("Failed to deserialize event $obj", e)
+            }
         }
     }
 }

@@ -2,28 +2,30 @@ package io.github.seggan.kasey
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.seggan.kasey.errors.LoginException
+import io.github.seggan.kasey.objects.User
 import io.ktor.client.call.*
 import io.ktor.client.plugins.cookies.*
-import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import org.jsoup.nodes.Document
-import java.text.Normalizer.Form
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 private val logger = KotlinLogging.logger {}
 
-class User(
+class Client(
     private val cookiesStorage: CookiesStorage = AcceptAllCookiesStorage(),
-    private val loginHost: String = "meta.stackexchange.com",
+    val host: ChatHost = ChatHost.STACK_EXCHANGE
 ) : AutoCloseable {
 
     private val client = constructClient(cookiesStorage)
     private var fkey: String by LoggedInProperty()
-    private var userId: String by LoggedInProperty()
-    private val rooms = mutableMapOf<String, Room>()
+    var user: User by LoggedInProperty()
+        private set
+
+    private val roomList = mutableMapOf<ULong, Room>()
+    val rooms: Map<ULong, Room> get() = roomList
 
     /**
      * Logs in to Stack Exchange chat.
@@ -37,7 +39,7 @@ class User(
         if (!client.cookies("stackexchange.com").any { it.name == "acct" }) {
             logger.info { "Cookie expired, logging in with password" }
             logger.debug { "Getting fkey" }
-            val fkey = getFkey("https://$loginHost/users/login")
+            val fkey = getFkey("https://meta.stackexchange.com/users/login")
             logger.debug { "Logging in" }
             val response = doLogin(email, password, fkey)
             if (response != "Login-OK") {
@@ -49,16 +51,27 @@ class User(
 
         logger.debug { "Getting chat info" }
         try {
-            this.fkey = getFkey("https://chat.stackexchange.com/chats/join/favorite")
-            this.userId = getUserId()
+            this.fkey = getFkey("${host.chatUrl}/chats/join/favorite")
+            this.user = getUser()
         } catch (e: Exception) {
             throw LoginException("Invalid credentials", e)
         }
         logger.info { "Logged in as $email" }
     }
 
-    fun joinRoom(id: String): Room {
-        return rooms.getOrPut(id) { Room(cookiesStorage, fkey, id) }
+    suspend fun joinRoom(id: ULong, previousMessages: Int = 100): Room {
+        if (id in roomList) {
+            return roomList[id]!!
+        }
+        val room = Room(cookiesStorage, fkey, id, this)
+        room.loadPreviousMessages(previousMessages)
+        room.join()
+        roomList[id] = room
+        return room
+    }
+
+    fun leaveRoom(id: ULong) {
+        roomList.remove(id)?.close()
     }
 
     private suspend fun getFkey(url: String): String {
@@ -72,7 +85,7 @@ class User(
 
     private suspend fun loadProfile(email: String, password: String, fkey: String) {
         val response = client.submitForm(
-            "https://$loginHost/users/login",
+            "https://meta.stackexchange.com/users/login",
             formParameters = parameters {
                 append("email", email)
                 append("password", password)
@@ -89,12 +102,15 @@ class User(
         }
     }
 
-    private suspend fun getUserId(): String {
-        val document = client.get("https://chat.stackexchange.com/chats/join/favorite").body<Document>()
-        val userIdString = document.select(".topbar-menu-links > a").attr("href")
+    private suspend fun getUser(): User {
+        val document = client.get("${host.chatUrl}/chats/join/favorite").body<Document>()
+        val userLink = document.select(".topbar-menu-links > a")
+        logger.debug { "User link: $userLink" }
+        val username = userLink.text()
+        val userIdString = userLink.attr("href")
         val userId = userIdString.split("/").getOrNull(2)
         if (userId != null) {
-            return userId
+            return User(userId.toULong(), username)
         } else if ("login" in userIdString) {
             throw LoginException("Invalid credentials")
         } else {
@@ -104,7 +120,7 @@ class User(
 
     private suspend fun doLogin(email: String, password: String, fkey: String): String {
         return client.submitForm(
-            "https://$loginHost/users/login-or-signup/validation/track",
+            "https://meta.stackexchange.com/users/login-or-signup/validation/track",
             formParameters = parameters {
                 append("email", email)
                 append("password", password)
@@ -122,7 +138,7 @@ class User(
 
     override fun close() {
         client.close()
-        rooms.values.forEach(Room::close)
+        roomList.values.forEach(Room::close)
     }
 }
 
@@ -131,7 +147,7 @@ private class LoggedInProperty<T> : ReadWriteProperty<Any?, T> {
     private var value: T? = null
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): T {
-        return value ?: throw LoginException("User must be logged in before accessing ${property.name}")
+        return value ?: throw LoginException("Client must be logged in before accessing ${property.name}")
     }
 
     override fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {

@@ -1,8 +1,10 @@
 package io.github.seggan.kasey.event
 
+import io.github.seggan.kasey.Room
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
@@ -11,7 +13,7 @@ import kotlinx.serialization.encoding.Encoder
 import java.time.Instant
 
 @Serializable
-data class ChatEventDetails(
+data class ChatEventDetails internal constructor(
     val id: ULong,
     @SerialName("message_id") val messageId: ULong,
     @SerialName("room_id") val roomId: ULong,
@@ -21,6 +23,12 @@ data class ChatEventDetails(
     @SerialName("user_id") val userId: ULong,
     @SerialName("user_name") val username: String,
 ) {
+
+    @Transient val room = currentRoom
+
+    companion object {
+        internal lateinit var currentRoom: Room
+    }
 }
 
 private object InstantAsSeconds : KSerializer<Instant> {
