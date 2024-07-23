@@ -1,11 +1,13 @@
 package io.github.seggan.kasey
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.github.seggan.kasey.errors.BadResponseException
 import io.github.seggan.kasey.errors.RatelimitException
 import io.github.seggan.kasey.errors.SeException
 import io.github.seggan.kasey.event.ChatEvent
 import io.github.seggan.kasey.event.ChatEventType
 import io.github.seggan.kasey.objects.Message
+import io.github.seggan.kasey.objects.User
 import io.ktor.client.call.*
 import io.ktor.client.plugins.cookies.*
 import io.ktor.client.plugins.websocket.*
@@ -20,6 +22,7 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.json.*
+import org.jsoup.nodes.Document
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.*
@@ -39,9 +42,6 @@ class Room internal constructor(
     private val httpClient = constructClient(cookiesStorage)
     private val scope = CoroutineScope(Dispatchers.IO)
     private val eventHandlers = mutableMapOf<UUID, suspend (ChatEvent) -> Unit>()
-
-    private var messageList = CopyOnWriteArrayList<Message>()
-    val messages: List<Message> get() = messageList
 
     internal suspend fun join() {
         val latch = Channel<Unit>()
@@ -97,7 +97,6 @@ class Room internal constructor(
                 .map { it.jsonArray.first().jsonObject }
                 .map { ChatEventType.constructEvent(it, this@Room) }
             for (event in events) {
-                processEvent(event)
                 for (handler in eventHandlers.values) {
                     scope.launch {
                         handler(event)
@@ -107,16 +106,7 @@ class Room internal constructor(
         }
     }
 
-    private suspend fun processEvent(event: ChatEvent) {
-        when (event) {
-            is ChatEvent.Message -> {
-                messageList.removeIf { m -> messageList.count { m == it } > 1 }
-                messageList.add(event.asMessage())
-            }
-        }
-    }
-
-    internal suspend fun request(path: String, params: Map<String, String>): HttpResponse {
+    internal suspend fun request(path: String, params: Map<String, String> = emptyMap()): HttpResponse {
         val url = client.host.chatUrl + path
         logger.debug { "Requesting $url with $params" }
         val response = httpClient.submitForm(
@@ -135,26 +125,50 @@ class Room internal constructor(
         } else if (response.status == HttpStatusCode.Conflict) {
             throw RatelimitException()
         } else {
-            throw SeException("Failed to request $path: ${response.status}: ${response.body<String>()}")
+            throw BadResponseException(response, response.body<String>())
         }
     }
 
-    suspend fun loadPreviousMessages(count: Int) {
+    suspend fun loadPreviousMessages(count: Int): List<Message> {
         val response = request(
             "/chats/$id/events",
             mapOf("mode" to "Messages", "msgCount" to count.toString(), "since" to "0")
         ).body<JsonObject>()
-        messageList = response["events"]!!.jsonArray
-            .mapNotNull { Message.fromJson(it.jsonObject, this) }
-            .let(::CopyOnWriteArrayList)
+        return response["events"]!!.jsonArray.mapNotNull { Message.fromJson(it.jsonObject, this) }
     }
 
     suspend fun sendMessage(message: String): Message {
         val json = request("/chats/$id/messages/new", mapOf("text" to message))
             .body<JsonObject>()
-        val id = json["id"]!!.jsonPrimitive.content.toULong()
+        val id = json["id"]!!.jsonPrimitive.ulong
+        val time = json["time"]!!.jsonPrimitive.long
         logger.debug { "Sent message $id" }
-        return Message(id, message, client.user, Instant.now(), this)
+        return Message(id, message, 0, client.user, Instant.ofEpochSecond(time), this)
+    }
+
+    /**
+     * Fetches a message by its ID.
+     *
+     * @param id The ID of the message.
+     * @return The message, or null if it doesn't exist or was deleted.
+     */
+    suspend fun getMessage(id: ULong): Message? {
+        val history = httpClient.get("${client.host.chatUrl}/messages/$id/history") {
+            parameter("fkey", fkey)
+        }.nullIfNotOk()?.body<Document>() ?: return null
+        val content = httpClient.get("${client.host.chatUrl}/message/$id") {
+            parameter("fkey", fkey)
+        }.nullIfNotOk()?.body<String>() ?: return null
+        val starContainer = history.select(".messages .flash .stars.vote-count-container").first()
+        val stars = if (starContainer == null) {
+            0
+        } else {
+            val times = starContainer.select(".times").first()
+            times?.text()?.toIntOrNull() ?: 0
+        }
+        val userLink = history.select(".username > a").first()!!
+        val user = User.fromLink(userLink) ?: throw SeException("Client is not logged in")
+        return Message(id, content, stars, user, Instant.now(), this)
     }
 
     fun registerEventHandler(handler: suspend (ChatEvent) -> Unit): UUID {
@@ -187,9 +201,14 @@ class Room internal constructor(
 
         runBlocking {
             try {
-                request("/chats/leave/$id", emptyMap())
-            } catch (e: Exception) {
-                // It's going to throw a 302, ignore it
+                request("/chats/leave/$id")
+            } catch (e: BadResponseException) {
+                if (e.response.status != HttpStatusCode.Found) {
+                    throw e
+                } else {
+                    // If you remove this branch, the linter will complain for some reason
+                    // I'm too lazy to submit a bug report
+                }
             }
         }
         eventHandlers.clear()
@@ -204,3 +223,5 @@ class Room internal constructor(
 private suspend inline fun <reified T> DefaultClientWebSocketSession.deserialize(frame: Frame): T {
     return converter!!.deserialize(StandardCharsets.UTF_8, typeInfo<T>(), frame) as T
 }
+
+private fun HttpResponse.nullIfNotOk() = if (status.isSuccess()) this else null

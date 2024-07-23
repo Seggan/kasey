@@ -54,17 +54,16 @@ class Client(
             this.fkey = getFkey("${host.chatUrl}/chats/join/favorite")
             this.user = getUser()
         } catch (e: Exception) {
-            throw LoginException("Invalid credentials", e)
+            throw LoginException("Invalid credentials (bad cookies?)", e)
         }
         logger.info { "Logged in as $email" }
     }
 
-    suspend fun joinRoom(id: ULong, previousMessages: Int = 100): Room {
+    suspend fun joinRoom(id: ULong): Room {
         if (id in roomList) {
             return roomList[id]!!
         }
         val room = Room(cookiesStorage, fkey, id, this)
-        room.loadPreviousMessages(previousMessages)
         room.join()
         roomList[id] = room
         return room
@@ -106,15 +105,10 @@ class Client(
         val document = client.get("${host.chatUrl}/chats/join/favorite").body<Document>()
         val userLink = document.select(".topbar-menu-links > a")
         logger.debug { "User link: $userLink" }
-        val username = userLink.text()
-        val userIdString = userLink.attr("href")
-        val userId = userIdString.split("/").getOrNull(2)
-        if (userId != null) {
-            return User(userId.toULong(), username)
-        } else if ("login" in userIdString) {
-            throw LoginException("Invalid credentials")
-        } else {
-            throw LoginException("Failed to get user ID from '$userIdString'")
+        try {
+            return User.fromLink(userLink.first()!!) ?: throw LoginException("Invalid credentials")
+        } catch (e: IllegalArgumentException) {
+            throw LoginException(e.message!!)
         }
     }
 

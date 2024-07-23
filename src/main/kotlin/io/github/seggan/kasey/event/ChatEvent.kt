@@ -22,7 +22,14 @@ sealed interface ChatEvent {
 
         fun asMessage(): MessageObject {
             val author = User(details.userId, details.username)
-            return MessageObject(details.messageId, content, author, details.timestamp, details.room)
+            return MessageObject(
+                details.messageId,
+                content,
+                0,
+                author,
+                details.timestamp,
+                details.room
+            )
         }
     }
 
