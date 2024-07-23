@@ -29,14 +29,11 @@ class Test {
 
     @Test
     fun test() = runBlocking {
-        println(parseSeTime("Jun 12, 2002 6:47 AM"))
-        /*
         val client = Client(AcceptAllCookiesStorage())
         client.login(email, password)
         val room = client.joinRoom(1u)
         delay(1000)
+        println(room.getMessage(65998170u))
         client.leaveRoom(1u)
-
-         */
     }
 }

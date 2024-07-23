@@ -3,11 +3,9 @@ package io.github.seggan.kasey
 import io.github.oshai.kotlinlogging.KotlinLogging
 import io.github.seggan.kasey.errors.BadResponseException
 import io.github.seggan.kasey.errors.RatelimitException
-import io.github.seggan.kasey.errors.SeException
 import io.github.seggan.kasey.event.ChatEvent
 import io.github.seggan.kasey.event.ChatEventType
 import io.github.seggan.kasey.objects.Message
-import io.github.seggan.kasey.objects.User
 import io.ktor.client.call.*
 import io.ktor.client.plugins.cookies.*
 import io.ktor.client.plugins.websocket.*
@@ -22,11 +20,9 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.json.*
-import org.jsoup.nodes.Document
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.*
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -149,26 +145,17 @@ class Room internal constructor(
     /**
      * Fetches a message by its ID.
      *
-     * @param id The ID of the message.
+     * @param message The ID of the message.
      * @return The message, or null if it doesn't exist or was deleted.
      */
-    suspend fun getMessage(id: ULong): Message? {
-        val history = httpClient.get("${client.host.chatUrl}/messages/$id/history") {
-            parameter("fkey", fkey)
-        }.nullIfNotOk()?.body<Document>() ?: return null
-        val content = httpClient.get("${client.host.chatUrl}/message/$id") {
-            parameter("fkey", fkey)
-        }.nullIfNotOk()?.body<String>() ?: return null
-        val starContainer = history.select(".messages .flash .stars.vote-count-container").first()
-        val stars = if (starContainer == null) {
-            0
-        } else {
-            val times = starContainer.select(".times").first()
-            times?.text()?.toIntOrNull() ?: 0
-        }
-        val userLink = history.select(".username > a").first()!!
-        val user = User.fromLink(userLink) ?: throw SeException("Client is not logged in")
-        return Message(id, content, stars, user, Instant.now(), this)
+    suspend fun getMessage(message: ULong): Message? {
+        val json = request(
+            "/chats/$id/events",
+            mapOf("mode" to "Messages", "msgCount" to "2", "before" to (message + 1u).toString())
+        ).body<JsonObject>()
+        return json["events"]!!.jsonArray
+            .mapNotNull { Message.fromJson(it.jsonObject, this) }
+            .firstOrNull { it.id == message }
     }
 
     fun registerEventHandler(handler: suspend (ChatEvent) -> Unit): UUID {
