@@ -139,7 +139,15 @@ class Room internal constructor(
         val id = json["id"]!!.jsonPrimitive.ulong
         val time = json["time"]!!.jsonPrimitive.long
         logger.debug { "Sent message $id" }
-        return Message(id, message, 0, client.user, Instant.ofEpochSecond(time), this)
+        return Message(
+            id,
+            message,
+            0,
+            null,
+            client.user,
+            Instant.ofEpochSecond(time),
+            this
+        )
     }
 
     /**

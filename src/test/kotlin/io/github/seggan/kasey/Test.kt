@@ -33,7 +33,7 @@ class Test {
         client.login(email, password)
         val room = client.joinRoom(1u)
         delay(1000)
-        println(room.getMessage(65998170u))
+        println(room.getMessage(66002220u))
         client.leaveRoom(1u)
     }
 }

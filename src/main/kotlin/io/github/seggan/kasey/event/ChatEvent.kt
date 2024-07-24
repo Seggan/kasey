@@ -26,6 +26,7 @@ sealed interface ChatEvent {
                 details.messageId,
                 content,
                 0,
+                null,
                 author,
                 details.timestamp,
                 details.room

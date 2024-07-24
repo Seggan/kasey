@@ -19,6 +19,7 @@ class Message(
     val id: ULong,
     content: String,
     stars: Int,
+    clientStarring: User?,
     val author: User,
     val timestamp: Instant,
     val room: Room
@@ -30,12 +31,21 @@ class Message(
     var stars = stars
         private set
 
+    var clientStarring = clientStarring
+        private set
+
     suspend fun getMarkdownContent(): String {
         return room.request("/messages/${room.id}/$id").body<String>()
     }
 
     suspend fun reply(content: String): Message {
         return room.sendMessage(":$id $content")
+    }
+
+    suspend fun getReplyingTo(): Message? {
+        if (!content.startsWith(":")) return null
+        val replyId = content.substringAfter(":").substringBefore(" ").toULongOrNull() ?: return null
+        return room.getMessage(replyId)
     }
 
     suspend fun isEditable(): Boolean {
@@ -56,6 +66,15 @@ class Message(
             throw SeException("Failed to edit message $id: $result")
         }
         content = newContent
+    }
+
+    suspend fun toggleStar() {
+        val result = room.request("/messages/$id/star").body<JsonElement>()
+        if (result.jsonPrimitive.content != "ok") {
+            throw SeException("Failed to ${if (clientStarring != null) "unstar" else "star"} message $id: $result")
+        }
+        stars += if (clientStarring != null) -1 else 1
+        clientStarring = if (clientStarring != null) null else room.client.user
     }
 
     suspend fun delete() {
@@ -80,12 +99,14 @@ class Message(
             val id = json["message_id"]!!.jsonPrimitive.ulong
             val content = json["content"]?.jsonPrimitive?.content ?: return null
             val stars = json["message_stars"]?.jsonPrimitive?.int ?: 0
+            val starred = json["message_starred"]?.jsonPrimitive?.boolean ?: false
+            val clientStarring = if (starred) room.client.user else null
             val author = User(
                 json["user_id"]!!.jsonPrimitive.ulong,
                 json["user_name"]!!.jsonPrimitive.content
             )
             val timestamp = Instant.ofEpochSecond(json["time_stamp"]!!.jsonPrimitive.long)
-            return Message(id, content, stars, author, timestamp, room)
+            return Message(id, content, stars, clientStarring, author, timestamp, room)
         }
     }
 }
