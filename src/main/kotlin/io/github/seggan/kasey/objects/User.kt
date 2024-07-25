@@ -1,8 +1,10 @@
 package io.github.seggan.kasey.objects
 
-import io.github.seggan.kasey.errors.LoginException
 import org.jsoup.nodes.Element
 
+/**
+ * Represents a chat user on Stack Exchange chat.
+ */
 data class User(val id: ULong, val name: String) {
     companion object {
         internal fun fromLink(link: Element): User? {

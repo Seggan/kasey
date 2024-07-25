@@ -2,7 +2,9 @@ package io.github.seggan.kasey.event
 
 import io.github.seggan.kasey.Room
 import io.github.seggan.kasey.errors.SeException
-import kotlinx.serialization.json.*
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonPrimitive
 
 enum class ChatEventType(val id: Int, private val constructor: ((JsonObject, Room) -> ChatEvent)? = null) {
     MESSAGE(1, ChatEvent::Message),
@@ -14,7 +16,7 @@ enum class ChatEventType(val id: Int, private val constructor: ((JsonObject, Roo
     DEBUG(7),
     MENTION(8, ChatEvent::Mention),
     FLAG(9),
-    DELETE(10),
+    DELETE(10, ChatEvent::Delete),
     FILE_UPLOAD(11),
     MODERATOR_FLAG(12),
     SETTINGS_CHANGED(13),

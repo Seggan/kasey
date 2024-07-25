@@ -1,5 +1,8 @@
 package io.github.seggan.kasey
 
+/**
+ * One of the three chat hosts.
+ */
 enum class ChatHost(host: String) {
 
     STACK_OVERFLOW("stackoverflow.com"),

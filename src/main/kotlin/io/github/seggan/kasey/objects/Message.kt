@@ -2,10 +2,8 @@ package io.github.seggan.kasey.objects
 
 import io.github.seggan.kasey.Room
 import io.github.seggan.kasey.errors.SeException
-import io.github.seggan.kasey.event.ChatEvent
 import io.github.seggan.kasey.ulong
 import io.ktor.client.call.*
-import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import org.jsoup.nodes.Document
 import java.time.Instant
@@ -14,7 +12,9 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-
+/**
+ * Represents a message in a chat room.
+ */
 class Message(
     val id: ULong,
     content: String,
@@ -31,23 +31,44 @@ class Message(
     var stars = stars
         private set
 
+    /**
+     * The user that starred the message or null if the client hasn't starred it.
+     */
     var clientStarring = clientStarring
         private set
 
+    /**
+     * Gets the Markdown content of the message.
+     */
     suspend fun getMarkdownContent(): String {
         return room.request("/messages/${room.id}/$id").body<String>()
     }
 
+    /**
+     * Replies to the message.
+     *
+     * @return The message that was sent as a reply.
+     */
     suspend fun reply(content: String): Message {
         return room.sendMessage(":$id $content")
     }
 
+    /**
+     * Gets the message that this message is replying to.
+     *
+     * @return The message that this message is replying to, or null if it isn't a reply.
+     */
     suspend fun getReplyingTo(): Message? {
         if (!content.startsWith(":")) return null
         val replyId = content.substringAfter(":").substringBefore(" ").toULongOrNull() ?: return null
         return room.getMessage(replyId)
     }
 
+    /**
+     * Checks if the message is editable.
+     *
+     * @return true if the message is editable, false otherwise.
+     */
     suspend fun isEditable(): Boolean {
         val document = room.request(
             "/messages/$id/history",
@@ -60,6 +81,9 @@ class Message(
         return ChronoUnit.SECONDS.between(time, LocalTime.now(ZoneOffset.UTC)) < EDIT_WINDOW_SECONDS
     }
 
+    /**
+     * Edits the message.
+     */
     suspend fun edit(newContent: String) {
         val result = room.request("/messages/$id", mapOf("text" to newContent)).body<JsonElement>()
         if (result.jsonPrimitive.content != "ok") {
@@ -68,6 +92,9 @@ class Message(
         content = newContent
     }
 
+    /**
+     * Stars the message if it isn't already starred, or unstars it if it is.
+     */
     suspend fun toggleStar() {
         val result = room.request("/messages/$id/star").body<JsonElement>()
         if (result.jsonPrimitive.content != "ok") {
@@ -77,6 +104,9 @@ class Message(
         clientStarring = if (clientStarring != null) null else room.client.user
     }
 
+    /**
+     * Deletes the message.
+     */
     suspend fun delete() {
         val result = room.request("/messages/$id/delete").body<JsonElement>()
         if (result.jsonPrimitive.content != "ok") {

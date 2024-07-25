@@ -16,7 +16,6 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.*
 import io.ktor.util.date.*
 import io.ktor.util.reflect.*
-import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.serialization.json.*
@@ -28,10 +27,19 @@ import kotlin.coroutines.suspendCoroutine
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * Represents a chat room.
+ */
 class Room internal constructor(
     private val cookiesStorage: CookiesStorage,
     private val fkey: String,
+    /**
+     * The ID of the room.
+     */
     val id: ULong,
+    /**
+     * The client that is in this room.
+     */
     val client: Client
 ) : AutoCloseable {
 
@@ -86,7 +94,8 @@ class Room internal constructor(
         val roomKey = "r$id"
         for (message in incoming) {
             logger.debug { "Received ${message.data.decodeToString()}" }
-            val events = deserialize<JsonObject>(message)
+            val json = converter!!.deserialize(StandardCharsets.UTF_8, typeInfo<JsonObject>(), message) as JsonObject
+            val events = json
                 .filterKeys { it == roomKey }
                 .values.asSequence()
                 .mapNotNull { it.jsonObject["e"] }
@@ -125,6 +134,12 @@ class Room internal constructor(
         }
     }
 
+    /**
+     * Loads the most recent messages in the room.
+     *
+     * @param count The number of messages to load.
+     * @return The messages.
+     */
     suspend fun loadPreviousMessages(count: Int): List<Message> {
         val response = request(
             "/chats/$id/events",
@@ -133,6 +148,12 @@ class Room internal constructor(
         return response["events"]!!.jsonArray.mapNotNull { Message.fromJson(it.jsonObject, this) }
     }
 
+    /**
+     * Sends a message to the room.
+     *
+     * @param message The message to send.
+     * @return The message object.
+     */
     suspend fun sendMessage(message: String): Message {
         val json = request("/chats/$id/messages/new", mapOf("text" to message))
             .body<JsonObject>()
@@ -166,16 +187,30 @@ class Room internal constructor(
             .firstOrNull { it.id == message }
     }
 
+    /**
+     * Registers an event handler for this room.
+     *
+     * @param handler The handler to register.
+     * @return The ID of the handler.
+     */
     fun registerEventHandler(handler: suspend (ChatEvent) -> Unit): UUID {
         val id = UUID.randomUUID()
         eventHandlers[id] = handler
         return id
     }
 
+    /**
+     * Unregisters an event handler for this room.
+     */
     fun unregisterEventHandler(id: UUID) {
         eventHandlers.remove(id)
     }
 
+    /**
+     * Waits for an event to occur.
+     *
+     * @param T The type of event to wait for.
+     */
     suspend inline fun <reified T : ChatEvent> waitForEvent(): T {
         lateinit var handler: UUID
         return suspendCoroutine { cont ->
@@ -191,6 +226,9 @@ class Room internal constructor(
 
     private var closed: Boolean = false
 
+    /**
+     * Leaves the room.
+     */
     override fun close() {
         if (closed) return
 
@@ -214,9 +252,3 @@ class Room internal constructor(
         client.leaveRoom(id)
     }
 }
-
-private suspend inline fun <reified T> DefaultClientWebSocketSession.deserialize(frame: Frame): T {
-    return converter!!.deserialize(StandardCharsets.UTF_8, typeInfo<T>(), frame) as T
-}
-
-private fun HttpResponse.nullIfNotOk() = if (status.isSuccess()) this else null

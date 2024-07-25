@@ -14,17 +14,34 @@ import kotlin.reflect.KProperty
 
 private val logger = KotlinLogging.logger {}
 
+/**
+ * A client for interacting with Stack Exchange chat.
+ */
 class Client(
+    /**
+     * The cookies storage to use. Defaults to [AcceptAllCookiesStorage].
+     */
     private val cookiesStorage: CookiesStorage = AcceptAllCookiesStorage(),
+    /**
+     * The chat host to use. Defaults to [ChatHost.STACK_EXCHANGE].
+     */
     val host: ChatHost = ChatHost.STACK_EXCHANGE
 ) : AutoCloseable {
 
     private val client = constructClient(cookiesStorage)
     private var fkey: String by LoggedInProperty()
+
+    /**
+     * The user that is logged in.
+     */
     var user: User by LoggedInProperty()
         private set
 
     private val roomList = mutableMapOf<ULong, Room>()
+
+    /**
+     * A map of all rooms that the client is in. Keys are room IDs.
+     */
     val rooms: Map<ULong, Room> get() = roomList
 
     /**
@@ -59,6 +76,12 @@ class Client(
         logger.info { "Logged in as $email" }
     }
 
+    /**
+     * Joins a room by its ID.
+     *
+     * @param id The ID of the room to join.
+     * @return The room that was joined.
+     */
     suspend fun joinRoom(id: ULong): Room {
         if (id in roomList) {
             return roomList[id]!!
@@ -69,6 +92,11 @@ class Client(
         return room
     }
 
+    /**
+     * Leaves a room by its ID.
+     *
+     * @param id The ID of the room to leave.
+     */
     fun leaveRoom(id: ULong) {
         roomList.remove(id)?.close()
     }
@@ -130,6 +158,9 @@ class Client(
         ).body<String>()
     }
 
+    /**
+     * Closes the client and leaves all rooms.
+     */
     override fun close() {
         client.close()
         roomList.values.forEach(Room::close)
