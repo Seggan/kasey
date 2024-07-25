@@ -91,7 +91,7 @@ class Room internal constructor(
                 .values.asSequence()
                 .mapNotNull { it.jsonObject["e"] }
                 .map { it.jsonArray.first().jsonObject }
-                .map { ChatEventType.constructEvent(it, this@Room) }
+                .mapNotNull { ChatEventType.constructEvent(it, this@Room) }
             for (event in events) {
                 for (handler in eventHandlers.values) {
                     scope.launch {

@@ -32,8 +32,7 @@ class Test {
         val client = Client(AcceptAllCookiesStorage())
         client.login(email, password)
         val room = client.joinRoom(1u)
-        delay(1000)
-        println(room.getMessage(66002220u))
+        room.sendMessage("Hello, world!")
         client.leaveRoom(1u)
     }
 }

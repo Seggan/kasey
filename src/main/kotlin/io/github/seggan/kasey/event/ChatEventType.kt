@@ -2,21 +2,17 @@ package io.github.seggan.kasey.event
 
 import io.github.seggan.kasey.Room
 import io.github.seggan.kasey.errors.SeException
-import kotlinx.serialization.KSerializer
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.*
-import kotlinx.serialization.serializer
-import kotlin.reflect.KClass
 
-enum class ChatEventType(val id: Int, private val serializer: KSerializer<out ChatEvent>? = null) {
-    MESSAGE(1, serializer<ChatEvent.Message>()),
-    EDIT(2),
-    JOIN(3),
-    LEAVE(4),
+enum class ChatEventType(val id: Int, private val constructor: ((JsonObject, Room) -> ChatEvent)? = null) {
+    MESSAGE(1, ChatEvent::Message),
+    EDIT(2, ChatEvent::Edit),
+    JOIN(3, ChatEvent::Join),
+    LEAVE(4, ChatEvent::Leave),
     NAME_CHANGE(5),
-    MESSAGE_STARRED(6),
+    MESSAGE_STARRED(6, ChatEvent::Star),
     DEBUG(7),
-    MENTION(8),
+    MENTION(8, ChatEvent::Mention),
     FLAG(9),
     DELETE(10),
     FILE_UPLOAD(11),
@@ -26,7 +22,7 @@ enum class ChatEventType(val id: Int, private val serializer: KSerializer<out Ch
     ACCESS_CHANGED(15),
     USER_NOTIFICATION(16),
     INVITATION(17),
-    REPLY(18),
+    REPLY(18, ChatEvent::Reply),
     MESSAGE_MOVED_OUT(19),
     MESSAGE_MOVED_IN(20),
     TIME_BREAK(21),
@@ -36,24 +32,11 @@ enum class ChatEventType(val id: Int, private val serializer: KSerializer<out Ch
     USER_NAME_OR_AVATAR_CHANGE(34);
 
     companion object {
-
-        private val json = Json {
-            ignoreUnknownKeys = true
-        }
-
-        fun constructEvent(obj: JsonObject, room: Room): ChatEvent {
-            try {
-                ChatEventDetails.currentRoom = room
-                val details = json.decodeFromJsonElement<ChatEventDetails>(obj)
-                ChatEvent.currentDetails = details
-                val typeNum = obj["event_type"]?.jsonPrimitive?.int
-                val type = entries.first { it.id == typeNum }
-                val serializer =
-                    type.serializer ?: throw UnsupportedOperationException("Event type $typeNum is not yet supported")
-                return json.decodeFromJsonElement(serializer, obj)
-            } catch (e: SerializationException) {
-                throw SeException("Failed to deserialize event $obj", e)
-            }
+        fun constructEvent(obj: JsonObject, room: Room): ChatEvent? {
+            val type = obj["event_type"]!!.jsonPrimitive.int
+            val eventType = entries.find { it.id == type } ?: throw SeException("Unknown event type: $type")
+            val constructor = eventType.constructor ?: return null
+            return constructor(obj, room)
         }
     }
 }
