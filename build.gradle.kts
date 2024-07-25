@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.seggan"
-version = "0.1.0"
+version = "0.2.0"
 description = "A simple library for interacting with Stack Exchange chat."
 
 repositories {

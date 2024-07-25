@@ -5,14 +5,14 @@ import org.jsoup.nodes.Element
 /**
  * Represents a chat user on Stack Exchange chat.
  */
-data class User(val id: ULong, val name: String) {
+data class User(val id: Long, val name: String) {
     companion object {
         internal fun fromLink(link: Element): User? {
             val username = link.text()
             val userIdString = link.attr("href")
             val userId = userIdString.split("/").getOrNull(2)
             return if (userId != null) {
-                User(userId.toULong(), username)
+                User(userId.toLong(), username)
             } else if ("login" in userIdString) {
                 null
             } else {

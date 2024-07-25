@@ -36,7 +36,7 @@ class Room internal constructor(
     /**
      * The ID of the room.
      */
-    val id: ULong,
+    val id: Long,
     /**
      * The client that is in this room.
      */
@@ -157,7 +157,7 @@ class Room internal constructor(
     suspend fun sendMessage(message: String): Message {
         val json = request("/chats/$id/messages/new", mapOf("text" to message))
             .body<JsonObject>()
-        val id = json["id"]!!.jsonPrimitive.ulong
+        val id = json["id"]!!.jsonPrimitive.long
         val time = json["time"]!!.jsonPrimitive.long
         logger.debug { "Sent message $id" }
         return Message(
@@ -177,10 +177,10 @@ class Room internal constructor(
      * @param message The ID of the message.
      * @return The message, or null if it doesn't exist or was deleted.
      */
-    suspend fun getMessage(message: ULong): Message? {
+    suspend fun getMessage(message: Long): Message? {
         val json = request(
             "/chats/$id/events",
-            mapOf("mode" to "Messages", "msgCount" to "2", "before" to (message + 1u).toString())
+            mapOf("mode" to "Messages", "msgCount" to "2", "before" to (message + 1).toString())
         ).body<JsonObject>()
         return json["events"]!!.jsonArray
             .mapNotNull { Message.fromJson(it.jsonObject, this) }

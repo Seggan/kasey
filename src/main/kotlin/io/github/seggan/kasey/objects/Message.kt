@@ -2,7 +2,6 @@ package io.github.seggan.kasey.objects
 
 import io.github.seggan.kasey.Room
 import io.github.seggan.kasey.errors.SeException
-import io.github.seggan.kasey.ulong
 import io.ktor.client.call.*
 import kotlinx.serialization.json.*
 import org.jsoup.nodes.Document
@@ -16,7 +15,7 @@ import java.time.temporal.ChronoUnit
  * Represents a message in a chat room.
  */
 class Message(
-    val id: ULong,
+    val id: Long,
     content: String,
     stars: Int,
     clientStarring: User?,
@@ -60,7 +59,7 @@ class Message(
      */
     suspend fun getReplyingTo(): Message? {
         if (!content.startsWith(":")) return null
-        val replyId = content.substringAfter(":").substringBefore(" ").toULongOrNull() ?: return null
+        val replyId = content.substringAfter(":").substringBefore(" ").toLongOrNull() ?: return null
         return room.getMessage(replyId)
     }
 
@@ -126,13 +125,13 @@ class Message(
         private const val EDIT_WINDOW_SECONDS = 115
 
         internal fun fromJson(json: JsonObject, room: Room): Message? {
-            val id = json["message_id"]!!.jsonPrimitive.ulong
+            val id = json["message_id"]!!.jsonPrimitive.long
             val content = json["content"]?.jsonPrimitive?.content ?: return null
             val stars = json["message_stars"]?.jsonPrimitive?.int ?: 0
             val starred = json["message_starred"]?.jsonPrimitive?.boolean ?: false
             val clientStarring = if (starred) room.client.user else null
             val author = User(
-                json["user_id"]!!.jsonPrimitive.ulong,
+                json["user_id"]!!.jsonPrimitive.long,
                 json["user_name"]!!.jsonPrimitive.content
             )
             val timestamp = Instant.ofEpochSecond(json["time_stamp"]!!.jsonPrimitive.long)

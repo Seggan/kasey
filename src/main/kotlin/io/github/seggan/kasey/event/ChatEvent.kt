@@ -2,7 +2,6 @@ package io.github.seggan.kasey.event
 
 import io.github.seggan.kasey.Room
 import io.github.seggan.kasey.objects.User
-import io.github.seggan.kasey.ulong
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonPrimitive
@@ -23,12 +22,12 @@ sealed class ChatEvent(jsonObject: JsonObject, val room: Room) {
      * The user that triggered the event.
      */
     val user = User(
-        jsonObject["user_id"]!!.jsonPrimitive.ulong,
+        jsonObject["user_id"]!!.jsonPrimitive.long,
         jsonObject["user_name"]!!.jsonPrimitive.content
     )
 
     sealed class MessageBase(jsonObject: JsonObject, room: Room) : ChatEvent(jsonObject, room) {
-        val messageId = jsonObject["message_id"]!!.jsonPrimitive.ulong
+        val messageId = jsonObject["message_id"]!!.jsonPrimitive.long
 
         /**
          * Gets the actual message object from the room.
@@ -83,12 +82,12 @@ sealed class ChatEvent(jsonObject: JsonObject, val room: Room) {
         /**
          * The user that was mentioned.
          */
-        val targetUserId = jsonObject["target_user_id"]!!.jsonPrimitive.ulong
+        val targetUserId = jsonObject["target_user_id"]!!.jsonPrimitive.long
 
         /**
          * The message that was replied to.
          */
-        val parentMessageId = jsonObject["parent_message_id"]!!.jsonPrimitive.ulong
+        val parentMessageId = jsonObject["parent_message_id"]!!.jsonPrimitive.long
     }
 
     /**

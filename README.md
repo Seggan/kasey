@@ -32,7 +32,7 @@ dependencies {
 suspend fun main() {
     val client = Client()
     client.login("user@email.com", "password")
-    val room = client.joinRoom(1u) // Sandbox
+    val room = client.joinRoom(1) // Sandbox
     val message = room.sendMessage("Hello, world!")
     println(message.content)
     message.edit("Hello, world! (edited)")
