@@ -1,6 +1,6 @@
 # kasey
 
-![Maven Central Version](https://img.shields.io/maven-central/v/io.github.seggan/sf4k)
+![Maven Central Version](https://img.shields.io/maven-central/v/io.github.seggan/kasey)
 [![Docs](https://img.shields.io/badge/docs-gh--pages-blue)](https://seggan.github.io/kasey/)
 
 A modern Stack Exchange client for Kotlin.
