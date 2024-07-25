@@ -11,7 +11,9 @@ open class SeException(message: String, cause: Throwable? = null) : RuntimeExcep
 /**
  * An exception thrown when the client is unable to log in.
  */
-class LoginException(message: String, cause: Throwable? = null) : SeException(message, cause)
+open class LoginException(message: String, cause: Throwable? = null) : SeException(message, cause)
+
+class InvalidCredentialsException : LoginException("Invalid credentials")
 
 /**
  * An exception thrown when the server rate limits the client.

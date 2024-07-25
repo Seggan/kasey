@@ -1,6 +1,7 @@
 package io.github.seggan.kasey
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.github.seggan.kasey.errors.InvalidCredentialsException
 import io.github.seggan.kasey.errors.LoginException
 import io.github.seggan.kasey.objects.User
 import io.ktor.client.call.*
@@ -71,7 +72,7 @@ class Client(
             this.fkey = getFkey("${host.chatUrl}/chats/join/favorite")
             this.user = getUser()
         } catch (e: Exception) {
-            throw LoginException("Invalid credentials (bad cookies?)", e)
+            throw InvalidCredentialsException()
         }
         logger.info { "Logged in as $email" }
     }
@@ -125,7 +126,7 @@ class Client(
         } else if ("Human verification" in response.body<Document>().select("title").first()!!.text()) {
             throw LoginException("Captcha required, wait a few minutes and try again.")
         } else {
-            throw LoginException("Failed to load profile")
+            throw InvalidCredentialsException()
         }
     }
 
