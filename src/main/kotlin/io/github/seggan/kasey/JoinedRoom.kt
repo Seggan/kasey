@@ -30,7 +30,7 @@ private val logger = KotlinLogging.logger {}
 /**
  * Represents a chat room.
  */
-class Room internal constructor(
+class JoinedRoom internal constructor(
     private val cookiesStorage: CookiesStorage,
     private val fkey: String,
     /**
@@ -100,7 +100,7 @@ class Room internal constructor(
                 .values.asSequence()
                 .mapNotNull { it.jsonObject["e"] }
                 .map { it.jsonArray.first().jsonObject }
-                .mapNotNull { ChatEventType.constructEvent(it, this@Room) }
+                .mapNotNull { ChatEventType.constructEvent(it, this@JoinedRoom) }
             for (event in events) {
                 for (handler in eventHandlers.values) {
                     scope.launch {

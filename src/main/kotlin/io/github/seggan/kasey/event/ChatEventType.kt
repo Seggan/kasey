@@ -1,12 +1,12 @@
 package io.github.seggan.kasey.event
 
-import io.github.seggan.kasey.Room
+import io.github.seggan.kasey.JoinedRoom
 import io.github.seggan.kasey.errors.SeException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 
-enum class ChatEventType(val id: Int, private val constructor: ((JsonObject, Room) -> ChatEvent)? = null) {
+enum class ChatEventType(val id: Int, private val constructor: ((JsonObject, JoinedRoom) -> ChatEvent)? = null) {
     MESSAGE(1, ChatEvent::Message),
     EDIT(2, ChatEvent::Edit),
     JOIN(3, ChatEvent::Join),
@@ -34,7 +34,7 @@ enum class ChatEventType(val id: Int, private val constructor: ((JsonObject, Roo
     USER_NAME_OR_AVATAR_CHANGE(34);
 
     companion object {
-        fun constructEvent(obj: JsonObject, room: Room): ChatEvent? {
+        fun constructEvent(obj: JsonObject, room: JoinedRoom): ChatEvent? {
             val type = obj["event_type"]!!.jsonPrimitive.int
             val eventType = entries.find { it.id == type } ?: throw SeException("Unknown event type: $type")
             val constructor = eventType.constructor ?: return null

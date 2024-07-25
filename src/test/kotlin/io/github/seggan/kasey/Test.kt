@@ -26,5 +26,7 @@ class Test {
         val room = client.joinRoom(1)
         room.sendMessage("Hello, world!")
         client.leaveRoom(1)
+
+        ChatHost.STACK_EXCHANGE.getAllRooms().collect(::println)
     }
 }

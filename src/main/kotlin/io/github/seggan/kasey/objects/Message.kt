@@ -1,6 +1,6 @@
 package io.github.seggan.kasey.objects
 
-import io.github.seggan.kasey.Room
+import io.github.seggan.kasey.JoinedRoom
 import io.github.seggan.kasey.errors.SeException
 import io.ktor.client.call.*
 import kotlinx.serialization.json.*
@@ -21,7 +21,7 @@ class Message(
     clientStarring: User?,
     val author: User,
     val timestamp: Instant,
-    val room: Room
+    val room: JoinedRoom
 ) {
 
     var content = content
@@ -124,7 +124,7 @@ class Message(
         private val MESSAGE_TIME_FORMATTER = DateTimeFormatter.ofPattern("h:mm a").withZone(ZoneOffset.UTC)
         private const val EDIT_WINDOW_SECONDS = 115
 
-        internal fun fromJson(json: JsonObject, room: Room): Message? {
+        internal fun fromJson(json: JsonObject, room: JoinedRoom): Message? {
             val id = json["message_id"]!!.jsonPrimitive.long
             val content = json["content"]?.jsonPrimitive?.content ?: return null
             val stars = json["message_stars"]?.jsonPrimitive?.int ?: 0

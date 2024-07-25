@@ -1,6 +1,6 @@
 package io.github.seggan.kasey.event
 
-import io.github.seggan.kasey.Room
+import io.github.seggan.kasey.JoinedRoom
 import io.github.seggan.kasey.objects.User
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.boolean
@@ -12,7 +12,7 @@ import io.github.seggan.kasey.objects.Message as AMessage
 /**
  * Represents an event that occurred in a chat room.
  */
-sealed class ChatEvent(jsonObject: JsonObject, val room: Room) {
+sealed class ChatEvent(jsonObject: JsonObject, val room: JoinedRoom) {
 
     abstract val type: ChatEventType
 
@@ -26,7 +26,7 @@ sealed class ChatEvent(jsonObject: JsonObject, val room: Room) {
         jsonObject["user_name"]!!.jsonPrimitive.content
     )
 
-    sealed class MessageBase(jsonObject: JsonObject, room: Room) : ChatEvent(jsonObject, room) {
+    sealed class MessageBase(jsonObject: JsonObject, room: JoinedRoom) : ChatEvent(jsonObject, room) {
         val messageId = jsonObject["message_id"]!!.jsonPrimitive.long
 
         /**
@@ -42,42 +42,42 @@ sealed class ChatEvent(jsonObject: JsonObject, val room: Room) {
     /**
      * Invoked when a message is sent.
      */
-    class Message internal constructor(jsonObject: JsonObject, room: Room) : MessageBase(jsonObject, room) {
+    class Message internal constructor(jsonObject: JsonObject, room: JoinedRoom) : MessageBase(jsonObject, room) {
         override val type = ChatEventType.MESSAGE
     }
 
     /**
      * Invoked when a message is edited.
      */
-    class Edit internal constructor(jsonObject: JsonObject, room: Room) : MessageBase(jsonObject, room) {
+    class Edit internal constructor(jsonObject: JsonObject, room: JoinedRoom) : MessageBase(jsonObject, room) {
         override val type = ChatEventType.EDIT
     }
 
     /**
      * Invoked when a user joins the room.
      */
-    class Join internal constructor(jsonObject: JsonObject, room: Room) : ChatEvent(jsonObject, room) {
+    class Join internal constructor(jsonObject: JsonObject, room: JoinedRoom) : ChatEvent(jsonObject, room) {
         override val type = ChatEventType.JOIN
     }
 
     /**
      * Invoked when a user leaves the room.
      */
-    class Leave internal constructor(jsonObject: JsonObject, room: Room) : ChatEvent(jsonObject, room) {
+    class Leave internal constructor(jsonObject: JsonObject, room: JoinedRoom) : ChatEvent(jsonObject, room) {
         override val type = ChatEventType.LEAVE
     }
 
     /**
      * Invoked when a message is starred or unstarred.
      */
-    class Star internal constructor(jsonObject: JsonObject, room: Room) : MessageBase(jsonObject, room) {
+    class Star internal constructor(jsonObject: JsonObject, room: JoinedRoom) : MessageBase(jsonObject, room) {
         override val type = ChatEventType.MESSAGE_STARRED
 
         val starred = jsonObject["message_starred"]?.jsonPrimitive?.boolean ?: false
         val pinned = jsonObject["message_owner_starred"]?.jsonPrimitive?.boolean ?: false
     }
 
-    sealed class Ping(jsonObject: JsonObject, room: Room) : MessageBase(jsonObject, room) {
+    sealed class Ping(jsonObject: JsonObject, room: JoinedRoom) : MessageBase(jsonObject, room) {
 
         /**
          * The user that was mentioned.
@@ -93,21 +93,21 @@ sealed class ChatEvent(jsonObject: JsonObject, val room: Room) {
     /**
      * Invoked when a user is mentioned in a message.
      */
-    class Mention internal constructor(jsonObject: JsonObject, room: Room) : Ping(jsonObject, room) {
+    class Mention internal constructor(jsonObject: JsonObject, room: JoinedRoom) : Ping(jsonObject, room) {
         override val type = ChatEventType.MENTION
     }
 
     /**
      * Invoked when a message is deleted.
      */
-    class Delete internal constructor(jsonObject: JsonObject, room: Room) : MessageBase(jsonObject, room) {
+    class Delete internal constructor(jsonObject: JsonObject, room: JoinedRoom) : MessageBase(jsonObject, room) {
         override val type = ChatEventType.DELETE
     }
 
     /**
      * Invoked when a message is replied to.
      */
-    class Reply internal constructor(jsonObject: JsonObject, room: Room) : Ping(jsonObject, room) {
+    class Reply internal constructor(jsonObject: JsonObject, room: JoinedRoom) : Ping(jsonObject, room) {
         override val type = ChatEventType.REPLY
     }
 }

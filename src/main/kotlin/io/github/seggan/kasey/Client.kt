@@ -38,12 +38,12 @@ class Client(
     var user: User by LoggedInProperty()
         private set
 
-    private val roomList = mutableMapOf<Long, Room>()
+    private val roomList = mutableMapOf<Long, JoinedRoom>()
 
     /**
      * A map of all rooms that the client is in. Keys are room IDs.
      */
-    val rooms: Map<Long, Room> get() = roomList
+    val rooms: Map<Long, JoinedRoom> get() = roomList
 
     /**
      * Logs in to Stack Exchange chat.
@@ -83,11 +83,11 @@ class Client(
      * @param id The ID of the room to join.
      * @return The room that was joined.
      */
-    suspend fun joinRoom(id: Long): Room {
+    suspend fun joinRoom(id: Long): JoinedRoom {
         if (id in roomList) {
             return roomList[id]!!
         }
-        val room = Room(cookiesStorage, fkey, id, this)
+        val room = JoinedRoom(cookiesStorage, fkey, id, this)
         room.join()
         roomList[id] = room
         return room
@@ -164,7 +164,7 @@ class Client(
      */
     override fun close() {
         client.close()
-        roomList.values.forEach(Room::close)
+        roomList.values.forEach(JoinedRoom::close)
     }
 }
 
