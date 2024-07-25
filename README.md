@@ -1,6 +1,31 @@
 # kasey
 
+![Maven Central Version](https://img.shields.io/maven-central/v/io.github.seggan/sf4k)
+[![Docs](https://img.shields.io/badge/docs-gh--pages-blue)](https://seggan.github.io/kasey/)
+
 A modern Stack Exchange client for Kotlin.
+
+## Add as dependency
+
+### Gradle
+```kotlin
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation("io.github.seggan:kasey:VERSION")
+}
+```
+
+### Maven
+```xml
+<dependency>
+    <groupId>io.github.seggan</groupId>
+    <artifactId>kasey</artifactId>
+    <version>VERSION</version>
+</dependency>
+```
 
 ## Example
 ```kotlin

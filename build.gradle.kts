@@ -8,7 +8,8 @@ plugins {
 }
 
 group = "io.github.seggan"
-version = "1.0-SNAPSHOT"
+version = "0.1.0"
+description = "A simple library for interacting with Stack Exchange chat."
 
 repositories {
     mavenCentral()
@@ -42,16 +43,12 @@ signing {
     useGpgCmd()
 }
 
-tasks.publish {
-    dependsOn(tasks.clean)
-}
-
 centralPortal {
     pom {
         url = "https://github.com/Seggan/kasey"
         licenses {
             license {
-                name = "Gnu Lesser General Public License, Version 3"
+                name = "Gnu Lesser General Public License v3"
                 url = "https://www.gnu.org/licenses/lgpl-3.0.en.html"
             }
         }
@@ -67,16 +64,6 @@ centralPortal {
             connection = "scm:git:git://github.com/Seggan/kasey.git"
             developerConnection = "scm:git:ssh://github.com:Seggan/kasey.git"
             url = "https://github.com/Seggan/kasey"
-        }
-        // whyyyy
-        withXml {
-            val depsNode = asNode().appendNode("dependencies")
-            for (dep in project.configurations.getByName("api").dependencies) {
-                val depNode = depsNode.appendNode("dependency")
-                depNode.appendNode("groupId", dep.group)
-                depNode.appendNode("artifactId", dep.name)
-                depNode.appendNode("version", dep.version)
-            }
         }
     }
 }
