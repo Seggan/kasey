@@ -1,6 +1,6 @@
 package io.github.seggan.kasey
 
-import io.ktor.client.plugins.cookies.*
+import dev.reformator.stacktracedecoroutinator.runtime.DecoroutinatorRuntime
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import java.util.*
@@ -17,16 +17,11 @@ class Test {
         Path("creds.properties").inputStream().use(properties::load)
         email = properties.getProperty("email")!!
         password = properties.getProperty("password")!!
+        DecoroutinatorRuntime.load()
     }
 
     @Test
     fun test() = runBlocking {
-        val client = Client(AcceptAllCookiesStorage())
-        client.login(email, password)
-        val room = client.joinRoom(1)
-        room.sendMessage("Hello, world!")
-        client.leaveRoom(1)
-
-        ChatHost.STACK_EXCHANGE.getAllRooms().collect(::println)
+        println(ChatHost.STACK_EXCHANGE.getRoom(240)!!.getDescription())
     }
 }

@@ -81,13 +81,18 @@ class Client(
      * Joins a room by its ID.
      *
      * @param id The ID of the room to join.
-     * @return The room that was joined.
+     * @return The room that was joined, or null if the room does not exist.
      */
-    suspend fun joinRoom(id: Long): JoinedRoom {
+    suspend fun joinRoom(id: Long): JoinedRoom? {
         if (id in roomList) {
             return roomList[id]!!
         }
-        val room = JoinedRoom(cookiesStorage, fkey, id, this)
+        val room = JoinedRoom(
+            cookiesStorage,
+            fkey,
+            host.getRoom(id) ?: return null,
+            this
+        )
         room.join()
         roomList[id] = room
         return room

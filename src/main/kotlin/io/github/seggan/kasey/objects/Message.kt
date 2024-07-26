@@ -40,7 +40,7 @@ class Message(
      * Gets the Markdown content of the message.
      */
     suspend fun getMarkdownContent(): String {
-        return room.request("/messages/${room.id}/$id").body<String>()
+        return room.request("/messages/${room.room.id}/$id").body<String>()
     }
 
     /**

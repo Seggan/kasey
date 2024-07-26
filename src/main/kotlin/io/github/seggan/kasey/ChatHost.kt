@@ -21,6 +21,8 @@ enum class ChatHost(host: String) {
 
     val chatUrl = "https://chat.$host"
 
+    private val client = constructClient(AcceptAllCookiesStorage())
+
     /**
      * Gets all rooms as a [Flow], sorted by activity.
      */
@@ -64,5 +66,14 @@ enum class ChatHost(host: String) {
             }
         }
         client.close()
+    }
+
+    suspend fun getRoom(id: Long): Room? {
+        val document = try {
+            client.get("$chatUrl/rooms/info/$id").body<Document>()
+        } catch (e: Exception) {
+            return null
+        }
+        return Room.fromRoomDocument(document, id)
     }
 }

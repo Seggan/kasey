@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "io.github.seggan"
-version = "0.3.0"
+version = "0.4.0"
 description = "A simple library for interacting with Stack Exchange chat."
 
 repositories {
@@ -27,6 +27,7 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm:7.0.0")
 
     testImplementation("ch.qos.logback:logback-classic:1.5.6")
+    testImplementation("dev.reformator.stacktracedecoroutinator:stacktrace-decoroutinator-jvm:2.3.9")
 
     testImplementation(kotlin("test"))
 }

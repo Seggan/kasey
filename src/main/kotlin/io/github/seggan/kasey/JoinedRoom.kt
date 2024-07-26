@@ -6,6 +6,7 @@ import io.github.seggan.kasey.errors.RatelimitException
 import io.github.seggan.kasey.event.ChatEvent
 import io.github.seggan.kasey.event.ChatEventType
 import io.github.seggan.kasey.objects.Message
+import io.github.seggan.kasey.objects.Room
 import io.ktor.client.call.*
 import io.ktor.client.plugins.cookies.*
 import io.ktor.client.plugins.websocket.*
@@ -33,10 +34,7 @@ private val logger = KotlinLogging.logger {}
 class JoinedRoom internal constructor(
     private val cookiesStorage: CookiesStorage,
     private val fkey: String,
-    /**
-     * The ID of the room.
-     */
-    val id: Long,
+    val room: Room,
     /**
      * The client that is in this room.
      */
@@ -49,7 +47,7 @@ class JoinedRoom internal constructor(
 
     internal suspend fun join() {
         val latch = Channel<Unit>()
-        logger.info { "Joining room $id" }
+        logger.info { "Joining room ${room.name}" }
         scope.launch {
             val httpClient = constructClient(cookiesStorage) {
                 install(WebSockets) {
@@ -63,7 +61,7 @@ class JoinedRoom internal constructor(
                 val response = httpClient.submitForm(
                     "${client.host.chatUrl}/ws-auth",
                     formParameters = parameters {
-                        append("roomid", id.toString())
+                        append("roomid", room.id.toString())
                         append("fkey", fkey)
                     }
                 ).body<JsonObject>()
@@ -91,7 +89,7 @@ class JoinedRoom internal constructor(
     }
 
     private suspend fun DefaultClientWebSocketSession.runWs() {
-        val roomKey = "r$id"
+        val roomKey = "r${room.id}"
         for (message in incoming) {
             logger.debug { "Received ${message.data.decodeToString()}" }
             val json = converter!!.deserialize(StandardCharsets.UTF_8, typeInfo<JsonObject>(), message) as JsonObject
@@ -123,7 +121,7 @@ class JoinedRoom internal constructor(
                 append("fkey", fkey)
             }
         ) {
-            header(HttpHeaders.Referrer, "${client.host.chatUrl}/rooms/$id")
+            header(HttpHeaders.Referrer, "${client.host.chatUrl}/rooms/${room.id}")
         }
         if (response.status.isSuccess()) {
             return response
@@ -142,7 +140,7 @@ class JoinedRoom internal constructor(
      */
     suspend fun loadPreviousMessages(count: Int): List<Message> {
         val response = request(
-            "/chats/$id/events",
+            "/chats/${room.id}/events",
             mapOf("mode" to "Messages", "msgCount" to count.toString(), "since" to "0")
         ).body<JsonObject>()
         return response["events"]!!.jsonArray.mapNotNull { Message.fromJson(it.jsonObject, this) }
@@ -155,7 +153,7 @@ class JoinedRoom internal constructor(
      * @return The message object.
      */
     suspend fun sendMessage(message: String): Message {
-        val json = request("/chats/$id/messages/new", mapOf("text" to message))
+        val json = request("/chats/${room.id}/messages/new", mapOf("text" to message))
             .body<JsonObject>()
         val id = json["id"]!!.jsonPrimitive.long
         val time = json["time"]!!.jsonPrimitive.long
@@ -179,7 +177,7 @@ class JoinedRoom internal constructor(
      */
     suspend fun getMessage(message: Long): Message? {
         val json = request(
-            "/chats/$id/events",
+            "/chats/${room.id}/events",
             mapOf("mode" to "Messages", "msgCount" to "2", "before" to (message + 1).toString())
         ).body<JsonObject>()
         return json["events"]!!.jsonArray
@@ -234,7 +232,7 @@ class JoinedRoom internal constructor(
 
         runBlocking {
             try {
-                request("/chats/leave/$id")
+                request("/chats/leave/${room.id}")
             } catch (e: BadResponseException) {
                 if (e.response.status != HttpStatusCode.Found) {
                     throw e
@@ -249,6 +247,6 @@ class JoinedRoom internal constructor(
         httpClient.close()
         closed = true
 
-        client.leaveRoom(id)
+        client.leaveRoom(room.id)
     }
 }
