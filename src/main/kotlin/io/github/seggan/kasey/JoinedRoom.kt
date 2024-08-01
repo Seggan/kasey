@@ -19,10 +19,15 @@ import io.ktor.util.date.*
 import io.ktor.util.reflect.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.channels.onFailure
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.serialization.json.*
 import java.nio.charset.StandardCharsets
 import java.time.Instant
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -43,7 +48,7 @@ class JoinedRoom internal constructor(
 
     private val httpClient = constructClient(cookiesStorage)
     private val scope = CoroutineScope(Dispatchers.IO)
-    private val eventHandlers = mutableMapOf<UUID, suspend (ChatEvent) -> Unit>()
+    private val eventHandlers = ConcurrentHashMap<UUID, suspend (ChatEvent) -> Unit>()
 
     internal suspend fun join() {
         val latch = Channel<Unit>()
@@ -198,6 +203,21 @@ class JoinedRoom internal constructor(
     }
 
     /**
+     * Registers an event handler for this room.
+     *
+     * @param T The type of event to handle.
+     * @param handler The handler to register.
+     * @return The ID of the handler.
+     */
+    inline fun <reified T : ChatEvent> registerEventHandlerFor(crossinline handler: suspend (T) -> Unit): UUID {
+        return registerEventHandler { event ->
+            if (event is T) {
+                handler(event)
+            }
+        }
+    }
+
+    /**
      * Unregisters an event handler for this room.
      */
     fun unregisterEventHandler(id: UUID) {
@@ -219,6 +239,24 @@ class JoinedRoom internal constructor(
             }
         }.also {
             unregisterEventHandler(handler)
+        }
+    }
+
+    /**
+     * Returns events as a [Flow]
+     *
+     * @return The flow of events.
+     */
+
+    fun eventsAsFlow(): Flow<ChatEvent> {
+        return callbackFlow {
+            lateinit var handler: UUID
+            handler = registerEventHandler {
+                trySend(it).onFailure {
+                    unregisterEventHandler(handler)
+                }
+            }
+            awaitClose { unregisterEventHandler(handler) }
         }
     }
 
