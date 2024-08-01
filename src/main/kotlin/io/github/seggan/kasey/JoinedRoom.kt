@@ -21,8 +21,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.onFailure
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.serialization.json.*
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -93,25 +92,25 @@ class JoinedRoom internal constructor(
         latch.receive()
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun DefaultClientWebSocketSession.runWs() {
         val roomKey = "r${room.id}"
-        for (message in incoming) {
-            logger.debug { "Received ${message.data.decodeToString()}" }
-            val json = converter!!.deserialize(StandardCharsets.UTF_8, typeInfo<JsonObject>(), message) as JsonObject
-            val events = json
-                .filterKeys { it == roomKey }
-                .values.asSequence()
-                .mapNotNull { it.jsonObject["e"] }
-                .map { it.jsonArray.first().jsonObject }
-                .mapNotNull { ChatEventType.constructEvent(it, this@JoinedRoom) }
-            for (event in events) {
+        incoming.receiveAsFlow()
+            .map { message ->
+                logger.debug { "Received ${message.data.decodeToString()}" }
+                converter!!.deserialize(StandardCharsets.UTF_8, typeInfo<JsonObject>(), message) as JsonObject
+            }
+            .flatMapConcat { json -> json.filterKeys { it == roomKey }.values.asFlow() }
+            .mapNotNull { it.jsonObject["e"] }
+            .map { it.jsonArray.first().jsonObject }
+            .mapNotNull { ChatEventType.constructEvent(it, this@JoinedRoom) }
+            .collect { event ->
                 for (handler in eventHandlers.values) {
                     scope.launch {
                         handler(event)
                     }
                 }
             }
-        }
     }
 
     internal suspend fun request(path: String, params: Map<String, String> = emptyMap()): HttpResponse {
@@ -248,7 +247,7 @@ class JoinedRoom internal constructor(
      * @return The flow of events.
      */
 
-    fun eventsAsFlow(): Flow<ChatEvent> {
+    fun eventFlow(): Flow<ChatEvent> {
         return callbackFlow {
             lateinit var handler: UUID
             handler = registerEventHandler {

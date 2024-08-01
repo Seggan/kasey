@@ -1,6 +1,9 @@
 package io.github.seggan.kasey
 
 import dev.reformator.stacktracedecoroutinator.runtime.DecoroutinatorRuntime
+import io.github.seggan.kasey.event.ChatEvent
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Test
 import java.util.*
@@ -22,6 +25,12 @@ class Test {
 
     @Test
     fun test() = runBlocking {
-        println(ChatHost.STACK_EXCHANGE.getRoom(240)!!.getDescription())
+        val client = Client()
+        client.login(email, password)
+        val room = client.joinRoom(1)!!
+        room.eventFlow()
+            .filterIsInstance<ChatEvent.Message>()
+            .map { it.getMessage() }.
+            collect(::println)
     }
 }

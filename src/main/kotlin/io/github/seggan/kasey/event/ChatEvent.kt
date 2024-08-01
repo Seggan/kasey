@@ -34,7 +34,7 @@ sealed class ChatEvent(jsonObject: JsonObject, val room: JoinedRoom) {
          *
          * @return The message object, or null if it doesn't exist.
          */
-        suspend fun getMessage(): AMessage? {
+        open suspend fun getMessage(): AMessage? {
             return room.getMessage(messageId)
         }
     }
@@ -44,6 +44,10 @@ sealed class ChatEvent(jsonObject: JsonObject, val room: JoinedRoom) {
      */
     class Message internal constructor(jsonObject: JsonObject, room: JoinedRoom) : MessageBase(jsonObject, room) {
         override val type = ChatEventType.MESSAGE
+
+        private val message = AMessage.fromJson(jsonObject, room)
+
+        override suspend fun getMessage(): AMessage? = message
     }
 
     /**
